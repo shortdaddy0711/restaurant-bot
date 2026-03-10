@@ -31,8 +31,16 @@ async def paint_history():
                 if message["role"] == "user":
                     st.write(message["content"])
                 else:
-                    if message["type"] == "message":
-                        st.write(message["content"][0]["text"].replace("$", "\$"))
+                    if message.get("type") == "message":
+                        content = message.get("content", [])
+                        if isinstance(content, list) and content:
+                            text = content[0].get("text", "") if isinstance(content[0], dict) else ""
+                        elif isinstance(content, str):
+                            text = content
+                        else:
+                            text = ""
+                        if text:
+                            st.write(text.replace("$", "\\$"))
 
 
 asyncio.run(paint_history())
@@ -57,7 +65,7 @@ async def run_agent(message):
                 if event.type == "raw_response_event":
                     if event.data.type == "response.output_text.delta":
                         response += event.data.delta
-                        text_placeholder.write(response.replace("$", "\$"))
+                        text_placeholder.write(response.replace("$", "\\$"))
 
                 elif event.type == "agent_updated_stream_event":
                     if st.session_state["agent"].name != event.new_agent.name:

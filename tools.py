@@ -261,7 +261,7 @@ def make_reservation(
     confirmation_id = f"RES-{random.randint(10000, 99999)}"
 
     # Persist the confirmation ID in context so it survives cross-agent handoffs
-    context.context.reservation_confirmation_id = confirmation_id
+    context.reservation_confirmation_id = confirmation_id
 
     return (
         f"🎉 Reservation Confirmed!\n\n"
