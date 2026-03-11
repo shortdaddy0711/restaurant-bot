@@ -294,6 +294,73 @@ def cancel_reservation(context: RestaurantContext, reservation_id: str) -> str:
 
 
 # =============================================================================
+# COMPLAINTS AGENT TOOLS
+# =============================================================================
+
+
+@function_tool
+def offer_discount(context: RestaurantContext, percentage: int) -> str:
+    """
+    Generate a discount voucher for the customer as a goodwill gesture.
+
+    Args:
+        percentage: Discount percentage to offer (e.g., 10, 20, 50)
+    """
+    voucher_code = f"SORRY{random.randint(1000, 9999)}"
+    return (
+        f"🎁 Discount Voucher Created!\n\n"
+        f"👤 Customer: {context.customer_name}\n"
+        f"🏷️ Voucher Code: {voucher_code}\n"
+        f"💰 Discount: {percentage}% off your next visit\n\n"
+        "Valid for 30 days. Present this code to your server or use it online.\n"
+        "We hope to welcome you back and make it up to you!"
+    )
+
+
+@function_tool
+def schedule_manager_callback(
+    context: RestaurantContext, phone_number: str, preferred_time: str
+) -> str:
+    """
+    Schedule a manager callback for the customer.
+
+    Args:
+        phone_number: Customer's phone number for the callback
+        preferred_time: Preferred time for the manager to call (e.g., 'today at 3 PM')
+    """
+    ticket_id = f"MGR-{random.randint(10000, 99999)}"
+    return (
+        f"📞 Manager Callback Scheduled\n\n"
+        f"👤 Customer: {context.customer_name}\n"
+        f"📋 Ticket ID: {ticket_id}\n"
+        f"📱 Phone: {phone_number}\n"
+        f"⏰ Callback Time: {preferred_time}\n\n"
+        "A member of our management team will contact you at the specified time.\n"
+        "We take your experience very seriously and appreciate you giving us the opportunity to make it right."
+    )
+
+
+@function_tool
+def process_refund(context: RestaurantContext, reason: str) -> str:
+    """
+    Initiate a refund for the customer's order.
+
+    Args:
+        reason: Brief reason for the refund (e.g., 'unsatisfactory food quality')
+    """
+    refund_id = f"REF-{random.randint(10000, 99999)}"
+    return (
+        f"💳 Refund Initiated\n\n"
+        f"👤 Customer: {context.customer_name}\n"
+        f"📋 Refund ID: {refund_id}\n"
+        f"📝 Reason: {reason}\n\n"
+        "Your refund has been submitted and will be processed within 3–5 business days.\n"
+        "You will receive a confirmation email shortly.\n"
+        "We sincerely apologize for the inconvenience and hope you'll give us another chance."
+    )
+
+
+# =============================================================================
 # AGENT HOOKS
 # =============================================================================
 
