@@ -19,6 +19,12 @@ class InputGuardRailOutput(BaseModel):
     reason: str
 
 
+class OutputGuardRailOutput(BaseModel):
+
+    is_unprofessional: bool
+    reason: str
+
+
 class HandoffData(BaseModel):
 
     to_agent_name: str

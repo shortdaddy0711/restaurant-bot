@@ -4,9 +4,9 @@ dotenv.load_dotenv()
 
 import asyncio
 import streamlit as st
-from agents import Runner, SQLiteSession, InputGuardrailTripwireTriggered
+from agents import Runner, SQLiteSession, InputGuardrailTripwireTriggered, OutputGuardrailTripwireTriggered
 from models import RestaurantContext
-from my_agents.triage_agent import triage_agent
+from my_agents.triage_agent import triage_agent, input_guardrail_agent
 
 restaurant_ctx = RestaurantContext(
     customer_name="Guest",
@@ -53,6 +53,23 @@ async def run_agent(message):
 
         st.session_state["text_placeholder"] = text_placeholder
 
+        # Pre-flight input guardrail check — runs synchronously BEFORE the stream
+        # starts so the triage agent never emits tokens for a blocked message.
+        # Only applied when the active agent carries input guardrails (triage agent).
+        active_agent = st.session_state["agent"]
+        if active_agent.input_guardrails:
+            guardrail_result = await Runner.run(
+                input_guardrail_agent,
+                message,
+                context=restaurant_ctx,
+            )
+            if guardrail_result.final_output.is_off_topic:
+                text_placeholder.write(
+                    "I'm sorry, I can only assist with restaurant-related inquiries. "
+                    "I can help you view the menu, make a reservation, or place an order. 🍽️"
+                )
+                return
+
         try:
             stream = Runner.run_streamed(
                 st.session_state["agent"],
@@ -80,7 +97,18 @@ async def run_agent(message):
                         response = ""
 
         except InputGuardrailTripwireTriggered:
-            st.write("I'm sorry, I can only help with restaurant-related questions. 🍽️")
+            # Safety net — should not be reached due to pre-flight check above,
+            # but kept in case the guardrail fires during streaming for edge cases.
+            text_placeholder.write(
+                "I'm sorry, I can only assist with restaurant-related inquiries. "
+                "I can help you view the menu, make a reservation, or place an order. 🍽️"
+            )
+
+        except OutputGuardrailTripwireTriggered:
+            text_placeholder.write(
+                "⚠️ I wasn't able to generate an appropriate response. Please try rephrasing your question, "
+                "and I'll do my best to help!"
+            )
 
 
 message = st.chat_input("Ask about our menu, place an order, or make a reservation!")
