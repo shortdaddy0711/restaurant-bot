@@ -4,6 +4,8 @@ dotenv.load_dotenv()
 
 import asyncio
 import logging
+import sqlite3
+import uuid
 from pathlib import Path
 
 # Show bot_engine debug logs in terminal AND a file we can easily inspect.
@@ -53,12 +55,54 @@ from bot_engine import (
 )
 
 # ---------------------------------------------------------------------------
+# Old session cleanup — 24시간 이상 지난 세션 데이터를 자동 삭제합니다.
+# ---------------------------------------------------------------------------
+_DB_PATH = Path(__file__).parent / "restaurant-memory.db"
+_CLEANUP_MAX_AGE_HOURS = 24
+
+
+def _cleanup_old_sessions() -> int:
+    """Delete sessions older than _CLEANUP_MAX_AGE_HOURS. Returns deleted count."""
+    try:
+        conn = sqlite3.connect(str(_DB_PATH))
+        conn.execute("PRAGMA foreign_keys = ON")  # CASCADE 삭제 활성화
+        cursor = conn.execute(
+            """
+            DELETE FROM agent_sessions
+            WHERE updated_at < datetime('now', ? || ' hours')
+            """,
+            (f"-{_CLEANUP_MAX_AGE_HOURS}",),
+        )
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+        if deleted > 0:
+            logging.getLogger("main").info(
+                "SESSION CLEANUP: deleted %d old sessions (>%dh)",
+                deleted, _CLEANUP_MAX_AGE_HOURS,
+            )
+        return deleted
+    except Exception as exc:
+        logging.getLogger("main").warning("Session cleanup failed: %s", exc)
+        return 0
+
+
+# 세션 시작 시 1회만 정리 실행 (매번 rerun마다 실행하지 않음)
+if "_cleanup_done" not in st.session_state:
+    _cleanup_old_sessions()
+    st.session_state["_cleanup_done"] = True
+
+# ---------------------------------------------------------------------------
 # Session state initialisation
 # ---------------------------------------------------------------------------
 
+# 각 브라우저 탭(사용자)마다 고유한 세션 ID를 부여하여 대화 기록이 섞이지 않도록 합니다.
+if "session_id" not in st.session_state:
+    st.session_state["session_id"] = f"chat-{uuid.uuid4().hex[:12]}"
+
 if "session" not in st.session_state:
     st.session_state["session"] = SQLiteSession(
-        "chat-history",
+        st.session_state["session_id"],
         "restaurant-memory.db",
     )
 session = st.session_state["session"]
@@ -430,6 +474,10 @@ with st.sidebar:
     reset = st.button("Reset memory")
     if reset:
         _run_async(session.clear_session())
+        # 새로운 세션 ID를 발급하여 완전히 깨끗한 대화를 시작합니다.
+        new_id = f"chat-{uuid.uuid4().hex[:12]}"
+        st.session_state["session_id"] = new_id
+        st.session_state["session"] = SQLiteSession(new_id, "restaurant-memory.db")
         st.session_state["agent"] = triage_agent
         st.session_state["ctx"] = RestaurantContext(customer_name="Guest")
     st.write(_run_async(session.get_items()))
