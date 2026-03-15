@@ -9,3 +9,17 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "streamlit>=1.48.1",
 ]
+
+# ---------------------------------------------------------------------------
+# Linter config  (Ruff / Flake8)
+# ---------------------------------------------------------------------------
+# E402 — module-level import not at top of file.  This project uses
+# dotenv.load_dotenv() before imports to ensure env vars are available
+# at import time.  The pattern is intentional across all entry-point files.
+# ---------------------------------------------------------------------------
+
+[tool.ruff.lint]
+ignore = ["E402"]
+
+[tool.flake8]
+extend-ignore = ["E402"]
