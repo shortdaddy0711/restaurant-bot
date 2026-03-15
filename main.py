@@ -27,71 +27,6 @@ from typing import TypeVar, Coroutine, Any
 import streamlit as st
 
 # ---------------------------------------------------------------------------
-# Page config & 모바일 최적화
-# ---------------------------------------------------------------------------
-st.set_page_config(
-    page_title="Restaurant Bot",
-    page_icon="🍽️",
-    layout="centered",
-)
-
-# 모바일 키보드가 올라올 때 채팅 영역이 밀려 올라가는 문제를 해결합니다.
-# - 채팅 입력창을 화면 하단에 고정
-# - 채팅 메시지 영역에 스크롤 확보
-# - viewport 높이(dvh) 사용으로 키보드 열림/닫힘에 동적 대응
-st.markdown(
-    """
-    <style>
-    /* ── 모바일 키보드 대응 ─────────────────────────────── */
-
-    /* Streamlit 루트 컨테이너: 뷰포트 전체를 차지하되 넘치지 않게 */
-    .stApp {
-        position: fixed !important;
-        top: 0; left: 0; right: 0; bottom: 0;
-        overflow: hidden !important;
-    }
-
-    /* 메인 콘텐츠 영역: 스크롤 가능한 채팅 영역 */
-    .stApp > header + div,
-    .stMainBlockContainer,
-    section[data-testid="stMainBlockContainer"] {
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 80px !important;     /* 입력창 높이만큼 여백 */
-    }
-
-    /* 채팅 입력창: 항상 화면 하단 고정 */
-    .stChatInput,
-    div[data-testid="stChatInput"] {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        z-index: 999 !important;
-        background: var(--background-color, white) !important;
-        padding: 0.5rem 1rem !important;
-    }
-
-    /* 사이드바 토글 버튼이 입력창과 겹치지 않도록 */
-    @media (max-width: 768px) {
-        .stSidebar {
-            z-index: 1000 !important;
-        }
-        /* 모바일에서 헤더 높이 줄이기 */
-        header[data-testid="stHeader"] {
-            padding: 0.25rem 0.5rem !important;
-        }
-    }
-    </style>
-
-    <!-- 모바일 키보드가 레이아웃을 밀어내지 않도록 viewport 설정 -->
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, interactive-widget=resizes-content">
-    """,
-    unsafe_allow_html=True,
-)
-
-# ---------------------------------------------------------------------------
 # Async helper — single event loop for all async calls
 # ---------------------------------------------------------------------------
 # Streamlit reruns the script top-to-bottom on every interaction.  Using
@@ -532,19 +467,6 @@ if message:
     with st.chat_message("human"):
         st.write(message)
     _run_async(run_agent(message))
-
-    # 응답 완료 후 최신 메시지로 자동 스크롤
-    st.markdown(
-        """
-        <script>
-        const mainBlock = document.querySelector(
-            'section[data-testid="stMainBlockContainer"], .stMainBlockContainer'
-        );
-        if (mainBlock) mainBlock.scrollTop = mainBlock.scrollHeight;
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
 
 
 with st.sidebar:

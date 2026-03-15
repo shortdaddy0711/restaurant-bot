@@ -32,6 +32,3 @@ qa_logs/
 
 # Local SSL certificate bundle (Walmart corporate proxy — machine-specific)
 combined-ca-bundle.pem
-
-# debug log
-debug.log
