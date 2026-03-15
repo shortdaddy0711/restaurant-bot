@@ -4,15 +4,21 @@ dotenv.load_dotenv()
 
 import asyncio
 import logging
+from pathlib import Path
 
 # Show bot_engine debug logs in terminal AND a file we can easily inspect.
+_log_file = Path(__file__).parent / "debug.log"
+_handlers: list[logging.Handler] = [logging.StreamHandler()]
+try:
+    _handlers.append(logging.FileHandler(str(_log_file), mode="a"))
+except OSError:
+    # Streamlit Cloud or read-only filesystem — file logging not available.
+    pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(name)s %(levelname)s: %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler("/Users/n0l0552/Development/personal/restaurant-bot/debug.log", mode="a"),
-    ],
+    handlers=_handlers,
 )
 logging.getLogger("bot_engine").setLevel(logging.DEBUG)
 from typing import TypeVar, Coroutine, Any
