@@ -1,0 +1,34 @@
+2026-03-15 04:04:22,614 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:22,659 bot_engine INFO: Decomposer called — model=gpt-5-mini, message=Need a table for 6 people at 7pm this Friday. Also, what pasta dishes do you hav
+2026-03-15 04:04:25,905 httpx INFO: HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2026-03-15 04:04:27,502 httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-15 04:04:27,505 bot_engine INFO: Decomposer raw response: {"intents": ["Need a table for 6 people at 7pm this Friday.", "Also, what pasta dishes do you have?"]}
+2026-03-15 04:04:27,505 bot_engine INFO: Decomposer result: 2 intent(s) → ['Need a table for 6 people at 7pm this Friday.', 'Also, what pasta dishes do you have?']
+2026-03-15 04:04:27,505 main INFO: BRANCH DECISION: sub_messages=2, is_multi_intent=True, sub=['Need a table for 6 people at 7pm this Friday.', 'Also, what pasta dishes do you have?']
+2026-03-15 04:04:27,505 main INFO: CTX STATE: pending_intents=[], is_queue_session=False, agent=Restaurant Host
+2026-03-15 04:04:27,505 main INFO: MULTI-INTENT: 2 intents detected
+2026-03-15 04:04:27,506 main INFO: QUICK INTENT: processing 'Also, what pasta dishes do you have?' via Runner.run()
+2026-03-15 04:04:28,648 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:28,899 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:29,871 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:31,743 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:31,767 httpx INFO: HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2026-03-15 04:04:31,786 main INFO: QUICK INTENT RESULT: agent=Food Expert, response=Here’s what we’ve got for pasta lovers:
+
+- Mushroom Pasta ($18): Porcini mushrooms, a hint of truffle oil, and a generou
+2026-03-15 04:04:31,786 main INFO: PRIMARY INTENT: streaming 'Need a table for 6 people at 7pm this Friday.'
+2026-03-15 04:04:31,992 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:32,541 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:33,132 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:34,255 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:04:37,177 httpx INFO: HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2026-03-15 04:05:08,085 bot_engine INFO: Decomposer called — model=gpt-5-mini, message=namsoo lee, 111-111-1111
+2026-03-15 04:05:09,884 httpx INFO: HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-15 04:05:09,885 bot_engine INFO: Decomposer raw response: {"intents": ["namsoo lee, 111-111-1111"]}
+2026-03-15 04:05:09,885 bot_engine INFO: Decomposer result: 1 intent(s) → ['namsoo lee, 111-111-1111']
+2026-03-15 04:05:09,885 main INFO: BRANCH DECISION: sub_messages=1, is_multi_intent=False, sub=['namsoo lee, 111-111-1111']
+2026-03-15 04:05:09,885 main INFO: CTX STATE: pending_intents=[], is_queue_session=False, agent=Front Desk
+2026-03-15 04:05:10,270 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:05:11,694 httpx INFO: HTTP Request: POST https://api.openai.com/v1/responses "HTTP/1.1 200 OK"
+2026-03-15 04:05:13,112 httpx INFO: HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"
+2026-03-15 04:05:13,306 httpx INFO: HTTP Request: POST https://api.openai.com/v1/traces/ingest "HTTP/1.1 204 No Content"

@@ -1,7 +1,56 @@
 import streamlit as st
 import random
 from agents import function_tool, AgentHooks, Agent, Tool, RunContextWrapper
-from models import RestaurantContext
+from models import RestaurantContext, OrderItem, TAX_RATE
+from menu_data import (
+    MENU,
+    DAILY_SPECIALS,
+    PRICE_LOOKUP,
+    ALLERGEN_LOOKUP,
+    format_menu_item,
+    format_daily_special,
+)
+
+
+# =============================================================================
+# Mock behaviour constants (tune for demo / testing)
+# =============================================================================
+
+AVAILABILITY_PROBABILITY: float = 0.75  # 75 % chance a requested slot is free
+HAPPY_HOUR_DISCOUNTS: list[str] = ["10%", "15%", "20%"]
+
+
+# =============================================================================
+# ORDER HELPERS  (DRY — used by get_order_summary & confirm_order)
+# =============================================================================
+
+
+def _format_order_lines(items: list[OrderItem]) -> list[str]:
+    """Return customer-facing line items."""
+    return [
+        f"• {item.quantity}x {item.name} — ${item.quantity * item.unit_price:.2f}"
+        for item in items
+    ]
+
+
+def _compute_totals(items: list[OrderItem]) -> tuple[float, float, float]:
+    """Return (subtotal, tax, total) for a list of order items."""
+    subtotal = sum(item.quantity * item.unit_price for item in items)
+    tax = subtotal * TAX_RATE
+    total = subtotal + tax
+    return subtotal, tax, total
+
+
+def _order_summary_block(items: list[OrderItem]) -> str:
+    """Build the subtotal / tax / total block used in summaries."""
+    lines = _format_order_lines(items)
+    subtotal, tax, total = _compute_totals(items)
+    return (
+        "\n".join(lines)
+        + f"\n\n💰 Subtotal: ${subtotal:.2f}"
+        + f"\n🧾 Tax ({TAX_RATE:.0%}): ${tax:.2f}"
+        + f"\n✅ Total: ${total:.2f}"
+    )
 
 
 # =============================================================================
@@ -12,49 +61,17 @@ from models import RestaurantContext
 @function_tool
 def lookup_menu_items(context: RestaurantContext, category: str) -> str:
     """
-    Look up menu items by category.
+    Browse our menu by category — see dishes, prices, and descriptions.
 
     Args:
-        category: Menu category (e.g., appetizers, mains, desserts, drinks, vegetarian)
+        category: Menu section to browse (appetizers, mains, desserts, drinks, or vegetarian)
     """
-    menus = {
-        "appetizers": [
-            "🥗 Caesar Salad - $12.00 (Romaine lettuce, parmesan, croutons)",
-            "🍲 French Onion Soup - $10.00 (Gruyère cheese, toasted baguette)",
-            "🦐 Shrimp Cocktail - $16.00 (Chilled shrimp, cocktail sauce)",
-            "🧅 Onion Rings - $8.00 (Beer-battered, ranch dipping sauce)",
-        ],
-        "mains": [
-            "🥩 Ribeye Steak - $42.00 (12oz, served with seasonal vegetables)",
-            "🍗 Grilled Chicken - $24.00 (Herb-marinated, mashed potatoes)",
-            "🐟 Pan-Seared Salmon - $32.00 (Lemon butter sauce, asparagus)",
-            "🍝 Mushroom Pasta - $18.00 (Porcini, truffle oil, parmesan)",
-        ],
-        "desserts": [
-            "🍰 New York Cheesecake - $9.00 (Berry compote)",
-            "🍫 Chocolate Lava Cake - $10.00 (Vanilla ice cream)",
-            "🍨 Crème Brûlée - $9.00 (Classic French custard)",
-            "🥧 Apple Tart - $8.00 (Caramel sauce, whipped cream)",
-        ],
-        "drinks": [
-            "🍷 House Red Wine - $10.00/glass",
-            "🍸 Classic Mojito - $12.00",
-            "🧃 Fresh Lemonade - $5.00",
-            "☕ Espresso - $4.00",
-        ],
-        "vegetarian": [
-            "🥗 Caesar Salad - $12.00 (can be made vegan on request)",
-            "🍝 Mushroom Pasta - $18.00 (Porcini, truffle oil, parmesan)",
-            "🥕 Veggie Burger - $16.00 (Beyond Meat patty, avocado, sprouts)",
-            "🫕 Lentil Stew - $15.00 (Moroccan spiced, served with pita)",
-        ],
-    }
-
     key = category.lower()
-    items = menus.get(key, menus.get("mains"))
-    label = key if key in menus else "mains"
+    items = MENU.get(key, MENU.get("mains"))
+    label = key if key in MENU else "mains"
 
-    return f"🍽️ {label.title()} Menu:\n" + "\n".join(items)
+    formatted = [format_menu_item(item) for item in items]
+    return f"🍽️ {label.title()} Menu:\n" + "\n".join(formatted)
 
 
 @function_tool
@@ -65,22 +82,11 @@ def check_allergens(context: RestaurantContext, dish_name: str) -> str:
     Args:
         dish_name: Name of the dish to check
     """
-    allergen_db = {
-        "caesar salad": ["gluten (croutons)", "dairy (parmesan)", "eggs (dressing)", "fish (anchovies)"],
-        "french onion soup": ["gluten (baguette)", "dairy (gruyère)"],
-        "shrimp cocktail": ["shellfish"],
-        "ribeye steak": [],
-        "grilled chicken": [],
-        "pan-seared salmon": ["fish"],
-        "mushroom pasta": ["gluten (pasta)", "dairy (parmesan)"],
-        "new york cheesecake": ["dairy", "gluten", "eggs"],
-        "chocolate lava cake": ["dairy", "gluten", "eggs"],
-        "veggie burger": ["gluten (bun)", "soy (patty)"],
-    }
-
     key = dish_name.lower()
-    for dish, allergens in allergen_db.items():
-        if dish in key or key in dish:
+
+    # Fuzzy match against the centralised allergen lookup
+    for known_name, allergens in ALLERGEN_LOOKUP.items():
+        if known_name in key or key in known_name:
             if allergens:
                 return (
                     f"⚠️ Allergen info for **{dish_name}**:\n"
@@ -101,17 +107,11 @@ def get_daily_specials(context: RestaurantContext) -> str:
     """
     Get today's daily specials and chef's recommendations.
     """
-    specials = [
-        "🌟 **Chef's Special**: Lobster Bisque - $22.00 (Fresh Maine lobster, cream, sherry)",
-        "🌟 **Today's Fish**: Grilled Sea Bass - $36.00 (Mediterranean herbs, capers, olives)",
-        "🌟 **Pasta of the Day**: Truffle Tagliatelle - $24.00 (Black truffle shavings, butter sauce)",
-        "🌟 **Dessert Special**: Tiramisu - $11.00 (House-made, espresso-soaked ladyfingers)",
-    ]
-
-    discount = random.choice(["15%", "10%", "20%"])
+    formatted = [format_daily_special(item) for item in DAILY_SPECIALS]
+    discount = random.choice(HAPPY_HOUR_DISCOUNTS)
     return (
         "🎉 Today's Daily Specials:\n\n"
-        + "\n".join(specials)
+        + "\n".join(formatted)
         + f"\n\n🏷️ Happy Hour (5–7PM): {discount} off all drinks!"
     )
 
@@ -124,31 +124,41 @@ def get_daily_specials(context: RestaurantContext) -> str:
 @function_tool
 def add_to_order(context: RestaurantContext, item_name: str, quantity: int = 1) -> str:
     """
-    Add an item to the current order.
+    Add a dish or drink to the guest's current order. The item must be on our menu.
 
     Args:
         item_name: Name of the menu item to add
-        quantity: Number of units to add (default: 1)
+        quantity: How many to add (default: 1)
     """
-    item_prices = {
-        "caesar salad": 12.00,
-        "french onion soup": 10.00,
-        "shrimp cocktail": 16.00,
-        "ribeye steak": 42.00,
-        "grilled chicken": 24.00,
-        "pan-seared salmon": 32.00,
-        "mushroom pasta": 18.00,
-        "new york cheesecake": 9.00,
-        "chocolate lava cake": 10.00,
-        "veggie burger": 16.00,
-        "lentil stew": 15.00,
-        "truffle tagliatelle": 24.00,
-        "lobster bisque": 22.00,
-    }
-
     key = item_name.lower()
-    price = item_prices.get(key, 20.00)
+
+    # Fuzzy match against the centralised price lookup
+    price = None
+    for known_key, known_price in PRICE_LOOKUP.items():
+        if known_key in key or key in known_key:
+            price = known_price
+            break
+
+    # C2 fix: reject unknown items instead of silently billing $20
+    if price is None:
+        return (
+            f"❌ Sorry, '{item_name}' is not on our menu.\n"
+            "Please check the menu and try again, or ask me for recommendations!"
+        )
+
     subtotal = price * quantity
+
+    # Persist to context — merge into existing entry if item already in basket
+    existing = next(
+        (item for item in context.order_items if item.name.lower() == item_name.lower()),
+        None,
+    )
+    if existing:
+        existing.quantity += quantity
+    else:
+        context.order_items.append(
+            OrderItem(name=item_name.title(), quantity=quantity, unit_price=price)
+        )
 
     return (
         f"✅ Added to your order:\n"
@@ -163,23 +173,15 @@ def get_order_summary(context: RestaurantContext) -> str:
     """
     Get a summary of the current order with total.
     """
-    mock_items = [
-        ("Ribeye Steak", 1, 42.00),
-        ("Caesar Salad", 2, 12.00),
-        ("House Red Wine", 2, 10.00),
-    ]
-
-    lines = [f"• {qty}x {name} — ${qty * price:.2f}" for name, qty, price in mock_items]
-    subtotal = sum(qty * price for _, qty, price in mock_items)
-    tax = subtotal * 0.1
-    total = subtotal + tax
+    if not context.order_items:
+        return (
+            f"📋 Your order is currently empty, {context.customer_name}.\n"
+            "Add some items and I'll show you a full summary!"
+        )
 
     return (
         f"📋 Current Order Summary for {context.customer_name}:\n\n"
-        + "\n".join(lines)
-        + f"\n\n💰 Subtotal: ${subtotal:.2f}"
-        + f"\n🧾 Tax (10%): ${tax:.2f}"
-        + f"\n✅ Total: ${total:.2f}"
+        + _order_summary_block(context.order_items)
     )
 
 
@@ -191,11 +193,23 @@ def confirm_order(context: RestaurantContext) -> str:
     order_id = f"ORD-{random.randint(1000, 9999)}"
     estimated_time = random.randint(20, 35)
 
+    if context.order_items:
+        order_detail = (
+            "\n📋 Items Sent to Kitchen:\n"
+            + _order_summary_block(context.order_items)
+            + "\n"
+        )
+        # Clear the basket now that the order is confirmed
+        context.order_items = []
+    else:
+        order_detail = "\n(No items in basket — please add items before confirming.)\n"
+
     return (
         f"🎉 Order Confirmed!\n\n"
         f"📋 Order ID: {order_id}\n"
         f"👤 Customer: {context.customer_name}\n"
-        f"⏱️ Estimated preparation time: {estimated_time} minutes\n"
+        + order_detail
+        + f"\n⏱️ Estimated preparation time: {estimated_time} minutes\n"
         f"🔔 Your server will bring your order shortly.\n"
         "Thank you for dining with us!"
     )
@@ -219,7 +233,7 @@ def check_availability(
         party_size: Number of guests
     """
     available_slots = ["6:00 PM", "6:30 PM", "7:00 PM", "8:00 PM", "8:30 PM"]
-    is_available = random.choice([True, True, True, False])
+    is_available = random.random() < AVAILABILITY_PROBABILITY
 
     if is_available:
         alternatives = random.sample(available_slots, 3)
@@ -249,14 +263,14 @@ def make_reservation(
     phone_number: str,
 ) -> str:
     """
-    Create a table reservation.
+    Book a table for the guest. All five details must be collected before calling this.
 
     Args:
         date: Reservation date (e.g., 'March 15' or '2026-03-15')
         time: Reservation time (e.g., '7:00 PM')
         party_size: Number of guests
-        guest_name: Full name of the person making the reservation
-        phone_number: Contact phone number for the reservation
+        guest_name: Name for the reservation
+        phone_number: Contact number in case of changes
     """
     confirmation_id = f"RES-{random.randint(10000, 99999)}"
 
@@ -301,7 +315,7 @@ def cancel_reservation(context: RestaurantContext, reservation_id: str) -> str:
 @function_tool
 def offer_discount(context: RestaurantContext, percentage: int) -> str:
     """
-    Generate a discount voucher for the customer as a goodwill gesture.
+    Offer the guest a discount voucher as an apology or goodwill gesture.
 
     Args:
         percentage: Discount percentage to offer (e.g., 10, 20, 50)
@@ -322,11 +336,11 @@ def schedule_manager_callback(
     context: RestaurantContext, phone_number: str, preferred_time: str
 ) -> str:
     """
-    Schedule a manager callback for the customer.
+    Arrange for our manager to call the guest back at a time that works for them.
 
     Args:
-        phone_number: Customer's phone number for the callback
-        preferred_time: Preferred time for the manager to call (e.g., 'today at 3 PM')
+        phone_number: Guest's phone number for the callback
+        preferred_time: When the guest would like the call (e.g., 'today at 3 PM')
     """
     ticket_id = f"MGR-{random.randint(10000, 99999)}"
     return (
@@ -343,7 +357,7 @@ def schedule_manager_callback(
 @function_tool
 def process_refund(context: RestaurantContext, reason: str) -> str:
     """
-    Initiate a refund for the customer's order.
+    Process a refund for the guest's order. Use when the guest has had a bad experience.
 
     Args:
         reason: Brief reason for the refund (e.g., 'unsatisfactory food quality')
